@@ -56,4 +56,11 @@ public interface PresenceService extends Remote {
      * present in the system.
      */
     Vector<RegistrationInfo> listRegisteredUsers() throws RemoteException;
+    
+    /**
+     * Broadcasts a given message to all currently listening clients.
+     * @param msg the message to be broadcasted.
+     * @throws RemoteException
+     */
+    void broadcast(String msg) throws RemoteException;
 }

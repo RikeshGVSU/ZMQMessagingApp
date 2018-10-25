@@ -1,5 +1,8 @@
 package edu.gvsu.cis;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 /**
  * <p>Title: Lab2</p>
  * <p>Description: Old School Instant Messaging Application </p>
@@ -8,6 +11,7 @@ package edu.gvsu.cis;
  */
 
 import java.rmi.RemoteException;
+import org.zeromq.ZMQ;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -18,10 +22,16 @@ import java.util.Vector;
 public class MyPresenceServer implements PresenceService {
 	
 	Hashtable<String,RegistrationInfo> regData;
+	PubThread pubThread;
+	StringBuilder message = null;
+	
 
 	public MyPresenceServer() {
 		super();
 		this.regData = new Hashtable<String,RegistrationInfo>();
+		this.pubThread = new PubThread();
+		Thread thread = new Thread(this.pubThread);
+		thread.start();
 	}
 
 	public static void main(String[] args) {
@@ -88,6 +98,44 @@ public class MyPresenceServer implements PresenceService {
 			return false;
 		}
 		
+	}
+
+	@Override
+	public void broadcast(String message) throws RemoteException{
+		System.out.println("in broadcast");
+		this.message = new StringBuilder(message);
+	}
+
+	/**
+	 * 
+	 * @author rikeshpuri
+	 *
+	 */
+	class PubThread implements Runnable{
+
+		public void run() {
+
+				ZMQ.Context context = ZMQ.context(1);
+				ZMQ.Socket socket = context.socket(ZMQ.PUB);
+				try {
+					String myHost = InetAddress.getLocalHost().getHostAddress();
+					socket.bind("tcp://"+myHost+":6000");
+				}catch(UnknownHostException e){
+					System.out.println("Unknown Host Exception from pubThread");
+				}catch(Exception e){
+					System.out.println("Exception: " + e);
+				}
+				while(true){
+					try{
+						Thread.sleep(1000);
+					} catch (InterruptedException e){}
+					if(MyPresenceServer.this.message != null) {
+						socket.sendMore ("A");
+						socket.send(MyPresenceServer.this.message.toString());
+						MyPresenceServer.this.message = null;
+					}
+				}
+		}
 	}
 }
 
